@@ -14,20 +14,19 @@ from stocks.controllers.stock_controller import get_stock, set_stock, get_stock_
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
 app = Flask(__name__)
-
+counter_orders = Counter('orders', 'Total calls to /orders')
+counter_report_best_sellers = Counter('highest-spenders', 'Total calls to /orders/reports/highest-spenders')
+                         
 @app.get('/health-check')
 def health():
     """Return OK if app is up and running"""
     return jsonify({'status':'ok'})
 
-@app.route("/metrics")
-def metrics():
-    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
-
 # Write routes (Commands)
 @app.post('/orders')
 def post_orders():
     """Create a new order based on information on request body"""
+    counter_orders.inc()
     return create_order(request)
 
 @app.delete('/orders/<int:order_id>')
@@ -84,6 +83,7 @@ def get_stocks(product_id):
 @app.get('/orders/reports/highest-spenders')
 def get_orders_highest_spending_users():
     """Get list of highest speding users, ordered by total expenditure"""
+    counter_report_best_sellers.inc()
     rows = get_report_highest_spending_users()
     return jsonify(rows)
 
@@ -110,7 +110,9 @@ def graphql_supplier():
         'errors': [str(e) for e in result.errors] if result.errors else None
     })
 
-# TODO: endpoint /metrics Prometheus
+@app.route("/metrics")
+def metrics():
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
 
 # Start Flask app
 if __name__ == '__main__':
