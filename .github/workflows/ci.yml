@@ -36,28 +36,30 @@ jobs:
         run: |
           docker network create labo04-network || true
           docker compose up -d
+          # Show container status
+          docker compose ps
 
       - name: Attendre MySQL
         run: |
-          sleep 10
+          # Wait for MySQL to be running and healthy
           timeout=60
-          until docker exec mysql mysqladmin ping -h localhost -u root -proot --silent; do
+          until docker compose exec -T mysql mysqladmin ping -h localhost -u root -proot --silent 2>/dev/null; do
             echo "Waiting for MySQL..."
             sleep 3
             timeout=$((timeout - 3))
             if [ $timeout -le 0 ]; then
               echo "MySQL failed to start"
+              docker compose logs mysql || true
               exit 1
             fi
           done
-          sleep 5
-          
+          echo "MySQL is ready"
+          sleep 2
+
       - name: Attendre Redis
         run: |
-          # get redis container id via compose
-          redis_cid=$(docker compose ps -q redis 2>/dev/null || true)
           timeout=60
-          until [ -n "$redis_cid" ] && docker exec "$redis_cid" redis-cli ping >/dev/null 2>&1; do
+          until docker compose exec -T redis redis-cli ping >/dev/null 2>&1; do
             echo "Waiting for Redis..."
             sleep 2
             timeout=$((timeout - 2))
@@ -66,7 +68,6 @@ jobs:
               docker compose logs redis || true
               exit 1
             fi
-            redis_cid=$(docker compose ps -q redis 2>/dev/null || true)
           done
           echo "Redis is ready"
         
